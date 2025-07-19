@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from datetime import datetime
 from pydantic import BaseModel
-from app.models import SearchRequest
+from app.models import SearchRequest, SearchResponse, EntityResult
+from app.scraping import search_entities_scraper
 
 app = FastAPI()
 
@@ -12,14 +13,14 @@ def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
-@app.post("/search")
+@app.post("/search", response_model=SearchResponse)
 def search_entities(request: SearchRequest):
-    # Por ahora, devolvemos una respuesta simulada
-    return {
-        "entity_name": request.entity_name,
-        "source": request.source,
-        "total_hits": 0,
-        "results": [],
-        "mensaje": "Búsqueda simulada. Aquí irán los resultados reales."
-    }
+    results = search_entities_scraper(request.entity_name, request.source)
+    entity_results = [EntityResult(**r) for r in results]
+    return SearchResponse(
+        entity_name=request.entity_name,
+        source=request.source,
+        total_hits=len(entity_results),
+        results=entity_results
+    )
 
