@@ -22,3 +22,4 @@ def search_entities(request: SearchRequest):
         "results": [],
         "mensaje": "Búsqueda simulada. Aquí irán los resultados reales."
     }
+
