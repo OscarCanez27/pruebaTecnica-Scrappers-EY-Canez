@@ -28,9 +28,9 @@ class WorldBankResult(BaseModel):
 class OFACResult(BaseModel):
     name: str
     address: Optional[str] = None
-    entity_type: Optional[str] = None
+    entity_type: Optional[str] = None #No se usa el nombre "type" porque es una palabra reservada de Python
     programs: Optional[str] = None
-    list_name: Optional[str] = None
+    list_name: Optional[str] = None #No se usa el nombre "list" porque es una palabra reservada de Python
     score: Optional[str] = None
     source: str = "OFAC"
 

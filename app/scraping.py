@@ -118,9 +118,61 @@ def search_world_bank(entity_name: str) -> List[WorldBankResult]:
 
 #OFAC
 def search_ofac(entity_name: str) -> List[OFACResult]:
-    # TODO: Implementar scraping de OFAC
-    return []
+    url = "https://sanctionssearch.ofac.treas.gov/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    session = requests.Session()
 
+    # 1. GET inicial para obtener los campos ocultos
+    response = session.get(url, headers=headers, timeout=30)
+    soup = BeautifulSoup(response.text, "html.parser")
+    form = soup.find("form", id="aspnetForm")
+    hidden_inputs = form.find_all("input", type="hidden")
+    form_data = {input.get("name"): input.get("value", "") for input in hidden_inputs}
+
+    # 2. Añadir los campos manualmente con valores por defecto
+    form_data["ctl00$MainContent$txtLastName"] = entity_name
+    form_data["ctl00$MainContent$ddlType"] = "All"
+    form_data["ctl00$MainContent$lstPrograms"] = "All"
+    form_data["ctl00$MainContent$Slider1_Boundcontrol"] = "100"
+    form_data["ctl00$MainContent$ddlCountry"] = "All"
+    form_data["ctl00$MainContent$ddlList"] = "All"
+    form_data["ctl00$MainContent$btnSearch"] = "Search"
+
+    # 3. POST con todos los datos
+    post_response = session.post(url, data=form_data, headers=headers, timeout=30)
+    soup = BeautifulSoup(post_response.text, "html.parser")
+
+    results = []
+    # Encuentra el div de resultados
+    scroll_div = soup.find("div", id="scrollResults")
+    if scroll_div:
+        table = scroll_div.find("table", id="gvSearchResults")
+        if table:
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 6:
+                    name_cell = cells[0]
+                    name_link = name_cell.find("a")
+                    name = name_link.get_text(strip=True) if name_link else name_cell.get_text(strip=True)
+                    address = cells[1].get_text(strip=True)
+                    entity_type = cells[2].get_text(strip=True)
+                    programs = cells[3].get_text(strip=True)
+                    list_name = cells[4].get_text(strip=True)
+                    score = cells[5].get_text(strip=True)
+                    results.append(OFACResult(
+                        name=name,
+                        address=address if address else None,
+                        entity_type=entity_type if entity_type else None,
+                        programs=programs if programs else None,
+                        list_name=list_name if list_name else None,
+                        score=score if score else None,
+                        source="OFAC"
+                    ))
+    return results
+
+#Scrapper final
 def search_entities_scraper(entity_name: str):
     # Buscar en las 3 fuentes
     offshore_results = search_offshore_leaks(entity_name)
