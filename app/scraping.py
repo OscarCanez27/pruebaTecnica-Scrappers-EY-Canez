@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from app.models import OffshoreLeaksResult, WorldBankResult, OFACResult
 from typing import List
 
+#Offshore Leaks
 def search_offshore_leaks(entity_name: str) -> List[OffshoreLeaksResult]:
     search_url = "https://offshoreleaks.icij.org/search"
     headers = {
@@ -73,10 +74,49 @@ def process_offshore_results_page(soup: BeautifulSoup) -> List[dict]:
                     })
     return results
 
-def search_world_bank(entity_name: str) -> List[WorldBankResult]:
-    # TODO: Implementar scraping de World Bank
-    return []
+#World Bank
+def build_world_bank_address(entry):
+    parts = []
+    for key in ["SUPP_ADDR", "SUPP_CITY", "SUPP_STATE_CODE", "SUPP_ZIP_CODE"]:
+        val = entry.get(key)
+        if val:
+            parts.append(val)
+    return ", ".join(parts)
 
+def matches_world_bank(entry, search_term):
+    search_term = search_term.lower()
+    fields = [
+        entry.get("SUPP_NAME", ""),
+        entry.get("SUPP_ADDR", ""),
+        entry.get("SUPP_CITY", ""),
+        entry.get("SUPP_STATE_CODE", ""),
+        entry.get("COUNTRY_NAME", ""),
+        entry.get("DEBAR_REASON", "")
+    ]
+    return any(search_term in (field or "").lower() for field in fields)
+
+def search_world_bank(entity_name: str) -> List[WorldBankResult]:
+    url = "https://apigwext.worldbank.org/dvsvc/v1.0/json/APPLICATION/ADOBE_EXPRNCE_MGR/FIRM/SANCTIONED_FIRM"
+    headers = {
+        "apikey": "z9duUaFUiEUYSHs97CU38fcZO7ipOPvm"
+    }
+    response = requests.get(url, headers=headers, timeout=30)
+    data = response.json()
+    results = []
+    for entry in data["response"]["ZPROCSUPP"]:
+        if matches_world_bank(entry, entity_name):
+            results.append(WorldBankResult(
+                firm_name=entry.get("SUPP_NAME"),
+                address=build_world_bank_address(entry),
+                country=entry.get("COUNTRY_NAME"),
+                from_date=entry.get("DEBAR_FROM_DATE"),
+                to_date=entry.get("DEBAR_TO_DATE"),
+                grounds=entry.get("DEBAR_REASON"),
+                source="World Bank"
+            ))
+    return results
+
+#OFAC
 def search_ofac(entity_name: str) -> List[OFACResult]:
     # TODO: Implementar scraping de OFAC
     return []
