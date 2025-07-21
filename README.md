@@ -1,65 +1,153 @@
-# Autenticación JWT (PyJWT)
+# Due Diligence Scrapper API
 
-Para acceder al endpoint `/search` necesito un token JWT.
+API para búsqueda de entidades en múltiples fuentes de riesgo: Offshore Leaks Database (ICIJ), World Bank Debarred Firms y OFAC Sanctions List.
 
-## Usuarios válidos de ejemplo
-- **Usuario:** ocanez
-  - **Contraseña:** Lucky2018
-- **Usuario:** admin
-  - **Contraseña:** admin123
-- **Usuario:** testuser
-  - **Contraseña:** testpass
+## Requisitos del Sistema
 
-## Cómo obtener el token
+- Python 3.7 o superior
+- pip (gestor de paquetes de Python)
+- Postman (para probar la API)
 
-Puedo obtener el token JWT de dos formas:
+## Instrucciones para Despliegue Local
 
-### 1. Desde Swagger UI
-- Voy a `/docs` (por ejemplo, http://localhost:8000/docs)
-- Hago clic en el botón "Authorize" (candado)
-- Ingreso el username y password de un usuario válido
-- Hago clic en "Authorize" y luego en "Close"
-- Ahoro puedo usar los endpoints protegidos directamente desde Swagger
-
-### 2. Desde curl o Postman
-
-Hago un POST a `/token` con los datos en formato x-www-form-urlencoded:
-
+### 1. Extraer el Proyecto y entrar a la carpeta de trabajo del proyecto
+```bash
+# Extraer el archivo zip
+unzip pruebaTecnica-Scrappers-EY-Canez.zip
+cd pruebaTecnica-Scrappers-EY-Canez
 ```
-POST http://127.0.0.1:8000/token
+
+### 2. En la terminal, crear Entorno Virtual
+```bash
+# Crear entorno virtual
+python -m venv venv
+
+# Activar entorno virtual
+# En Windows:
+venv\Scripts\activate
+# En macOS/Linux:
+source venv/bin/activate
+```
+
+### 3. Instalar Dependencias
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Ejecutar la API
+```bash
+uvicorn app.main:app --reload
+```
+
+La API estará disponible en: `http://localhost:8000`
+
+### 5. Verificar que Funciona
+Abre tu navegador en: `http://localhost:8000/health`
+
+Deberías ver:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-21T14:29:50.159493"
+}
+```
+
+### 6. Probar con Postman
+1. Abre Postman
+2. Importa la colección: `Due_Diligence_Scrapper_API.postman_collection.json`
+3. Usa los ejemplos incluidos para probar la API
+
+## Endpoints Disponibles
+
+- `GET /health` - Verificar estado del servicio (público)
+- `POST /token` - Obtener token JWT (requiere credenciales)
+- `POST /search` - Buscar entidades (requiere token JWT)
+
+## Autenticación JWT
+
+Para acceder al endpoint `/search` necesitas un token JWT.
+
+### Usuarios Válidos
+- **Usuario:** ocanez - **Contraseña:** Lucky2018
+- **Usuario:** admin - **Contraseña:** admin123
+- **Usuario:** testuser - **Contraseña:** testpass
+
+### Cómo Obtener el Token
+
+Haz un POST a `/token` con los datos en formato x-www-form-urlencoded:
+
+```bash
+POST http://localhost:8000/token
 Content-Type: application/x-www-form-urlencoded
 
+#Usuario de prueba:
 username=ocanez&password=Lucky2018
 ```
 
-Recibiré una respuesta como:
-```
+Respuesta:
+```json
 {
-  "access_token": "<tu_token>",
+  "access_token": "<token>",
   "token_type": "bearer"
 }
 ```
 
-## Cómo usar el token
+### Cómo Usar el Token
 
-En cada request a `/search`, agregaré el header:
-
+En cada request a `/search`, agrega el header:
 ```
-Authorization: Bearer <access_token>
+Authorization: Bearer <token>
 ```
 
-Si el token es inválido o falta, recibiré un error 401.
+### Ejemplo de Búsqueda
 
-## Ejemplo de uso con curl
-
-```
-curl -X POST "http://127.0.0.1:8000/search" \
-  -H "Authorization: Bearer <access_token>" \
+```bash
+curl -X POST "http://localhost:8000/search" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"entity_name": "Guangdong"}'
 ```
 
-## Notas de seguridad
-- Solo los usuarios válidos pueden obtener un token.
-- Si intento acceder a un endpoint protegido sin token o con un token inválido, recibiré un error 401.
-- Puedo agregar más usuarios en el código, al menos por ahora que están hardcodeados.
+## Rate Limiting
+
+- Máximo 20 búsquedas por minuto por dirección IP
+- Error 429 si se excede el límite
+
+## Fuentes Consultadas
+
+1. **Offshore Leaks Database (ICIJ)** - Empresas offshore y fundaciones
+2. **World Bank Debarred Firms** - Empresas sancionadas por el Banco Mundial
+3. **OFAC Sanctions List** - Lista de sanciones del Tesoro de EE.UU.
+
+## Estructura de Respuesta
+
+```json
+{
+  "entity_name": "Empresa Buscada",
+  "total_hits": 5,
+  "results_by_source": {
+    "offshore_leaks": {
+      "hits": 2,
+      "results": [...]
+    },
+    "world_bank": {
+      "hits": 1,
+      "results": [...]
+    },
+    "ofac": {
+      "hits": 2,
+      "results": [...]
+    }
+  }
+}
+```
+
+## Solución de Problemas
+
+### La API no inicia
+- Verifica que el entorno virtual esté activado
+- Verifica que todas las dependencias estén instaladas: `pip list`
+
+### Error 401 en /search
+- Verifica que el token JWT sea válido
+- Obtén un nuevo token usando el endpoint `/token`
